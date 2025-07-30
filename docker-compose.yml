@@ -1,36 +1,24 @@
-version: '3.8'
+version: '3.9'
 
 services:
-  db:
-    image: postgres:15
-    restart: always
-    container_name: asset-db
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-
   backend:
-    build: ./backend
-    container_name: asset-backend
-    depends_on:
-      - db
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    build:
+      context: ./backend
     ports:
       - "8000:8000"
+    environment:
+      DB_HOST: host.docker.internal   # or your host IP (e.g., 192.168.2.6)
+      DB_PORT: 5432
+      DB_NAME: assetdb
+      DB_USER: assetuser
+      DB_PASSWORD: assetpass
+    depends_on:
+      - frontend
 
   frontend:
-    build: ./frontend
-    container_name: asset-frontend
+    build:
+      context: ./frontend
     ports:
       - "5173:5173"
-    depends_on:
-      - backend
-
-volumes:
-  postgres_data:
+    environment:
+      VITE_API_URL: http://localhost:8000
