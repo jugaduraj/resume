@@ -1,56 +1,24 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Depends
+from . import models, schemas, crud
+from .database import engine, Base, get_db
 from sqlalchemy.orm import Session
-from database import SessionLocal, engine
-from models import Base, Asset, AssetSchema
-import sys
-
-sys.path.append('/app')
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# CORS (allow React frontend)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+@app.post("/assets/", response_model=schemas.Asset)
+def create_asset(asset: schemas.AssetCreate, db: Session = Depends(get_db)):
+    return crud.create_asset(db, asset)
 
-@app.get("/assets")
-def get_assets():
-    db = SessionLocal()
-    return db.query(Asset).all()
+@app.get("/assets/", response_model=list[schemas.Asset])
+def read_assets(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_assets(db, skip, limit)
 
-@app.post("/assets")
-def create_asset(asset: AssetSchema):
-    db: Session = SessionLocal()
-    db_asset = Asset(**asset.dict())
-    db.add(db_asset)
-    db.commit()
-    db.refresh(db_asset)
-    return db_asset
+@app.get("/assets/{asset_id}", response_model=schemas.Asset)
+def read_asset(asset_id: int, db: Session = Depends(get_db)):
+    return crud.get_asset(db, asset_id)
 
 @app.delete("/assets/{asset_id}")
-def delete_asset(asset_id: int):
-    db = SessionLocal()
-    asset = db.query(Asset).filter(Asset.id == asset_id).first()
-    if not asset:
-        raise HTTPException(status_code=404, detail="Asset not found")
-    db.delete(asset)
-    db.commit()
-    return {"message": "Asset deleted"}
-
-@app.put("/assets/{asset_id}")
-def update_asset(asset_id: int, asset_data: AssetSchema):
-    db = SessionLocal()
-    asset = db.query(Asset).filter(Asset.id == asset_id).first()
-    if not asset:
-        raise HTTPException(status_code=404, detail="Asset not found")
-    for key, value in asset_data.dict().items():
-        setattr(asset, key, value)
-    db.commit()
-    db.refresh(asset)
-    return asset
+def delete_asset(asset_id: int, db: Session = Depends(get_db)):
+    return crud.delete_asset(db, asset_id)
